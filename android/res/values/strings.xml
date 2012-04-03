@@ -5,5 +5,7 @@
     <string name="app_name">BlueMote</string>
 
     <string name="btn_connect">Connect Remote</string>
+    <string name="btn_disconnect">Disconnect Remote</string>
     <string name="msg_scanning">Scanning for remote...</string>
+    <string name="msg_bt_not_enabled_leaving">Bluetooth not enabled, quitting</string>
 </resources>

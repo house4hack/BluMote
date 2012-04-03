@@ -18,7 +18,7 @@ import android.view.View;
 import android.widget.Toast;
 
 public class Main extends Activity {
-   private static final String BLUEMOTE_NAME_PREFIX = "Toby";
+   private static final String BLUEMOTE_NAME_PREFIX = "TobyBee";
    // Debugging
    private static final String TAG = "BlueMote";
    private static final boolean D = true;
@@ -109,9 +109,47 @@ public class Main extends Activity {
       if (mService != null) mService.stop();
    }
 
+   public void onActivityResult(int requestCode, int resultCode, Intent data) {
+      if(D) Log.d(TAG, "onActivityResult " + resultCode);
+      switch (requestCode) {
+      case REQUEST_CONNECT_DEVICE_SECURE:
+          // When DeviceListActivity returns with a device to connect
+          if (resultCode == Activity.RESULT_OK) {
+              //connectDevice(data, true);
+          }
+          break;
+      case REQUEST_CONNECT_DEVICE_INSECURE:
+          // When DeviceListActivity returns with a device to connect
+          if (resultCode == Activity.RESULT_OK) {
+              //connectDevice(data, false);
+          }
+          break;
+      case REQUEST_ENABLE_BT:
+          // When the request to enable Bluetooth returns
+          if (resultCode == Activity.RESULT_OK) {
+              // Bluetooth is now enabled, so set up a chat session
+              setupChat();
+          } else {
+              // User did not enable Bluetooth or an error occurred
+              Log.d(TAG, "BT not enabled");
+              Toast.makeText(this, R.string.msg_bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
+              finish();
+          }
+      }
+  }
+   
+   
    public void setupChat() {
       // Initialize the BluetoothService to perform bluetooth connections
       mService = new BluetoothService(this, mHandler);
+   }
+   
+   public void connectDevice(BluetoothDevice device, boolean secure) {
+      if (mService != null) {
+         mService.connect(device, secure);
+      } else {
+         Log.d(TAG, "mService null, can't connect to " + device.getName());         
+      }
    }
 
    /**
@@ -135,11 +173,17 @@ public class Main extends Activity {
       for (BluetoothDevice d : pairedDevices) {
          if (d.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
             // found our device, connect to it
-            if (mService != null) mService.connect(d, true);
+            Log.d(TAG, "Found device " + d.getName() + " - " + d.getUuids());
+            connectDevice(d, true);
          }
       }
       
       doDiscovery();
+   }
+   
+   public void onDisconnect(View v) {
+      mService.stop();
+      finish();
    }
    
    private void doDiscovery() {
@@ -227,12 +271,14 @@ public class Main extends Activity {
                // If it's already paired, skip it, because it's been listed already
                if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
                   if (device.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
-                     mService.connect(device, false);
+                     Log.d(TAG, "Found unpaired device " + device.getName() + " - " + device.getUuids());
+                     connectDevice(device, false);
                   }
                }
            // When discovery is finished, change the Activity title
            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
               if (pd != null) pd.dismiss();
+              unregisterReceiver(mReceiver);
            }
        }
    };
