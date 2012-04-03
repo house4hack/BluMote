@@ -22,6 +22,7 @@ import android.widget.Toast;
 
 public class Main extends Activity {
    private static final String BLUEMOTE_NAME_PREFIX = "BlueMote";
+
    // Debugging
    private static final String TAG = "BlueMote";
    private static final boolean D = true;
@@ -51,6 +52,7 @@ public class Main extends Activity {
    private BluetoothAdapter mBtAdapter;
 
    private ProgressDialog pd = null;
+   private boolean pairing = false;
 
    /** Called when the activity is first created. */
    @Override
@@ -110,7 +112,7 @@ public class Main extends Activity {
       super.onDestroy();
       // Stop the Bluetooth chat services
       if (mService != null) mService.stop();
-      unregisterReceiver(mReceiver);
+      try { unregisterReceiver(mReceiver); } catch (Exception e) {}
    }
 
    public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -168,6 +170,8 @@ public class Main extends Activity {
          @Override
          public void onClick(DialogInterface dialog, int which) {
             dialog.dismiss();
+            pairing = true;
+            
             // Register for broadcasts when a device is discovered
             IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
             registerReceiver(mReceiver, filter);
@@ -230,7 +234,7 @@ public class Main extends Activity {
                      Toast.makeText(getApplicationContext(),
                               "Connected " + msg.getData().getString(TOAST), Toast.LENGTH_SHORT)
                               .show();
-                     sendBluetooth("*");
+                     if (pairing) sendBluetooth("*");
                      break;
                   case BluetoothService.STATE_CONNECTING:
 //                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
@@ -311,6 +315,7 @@ public class Main extends Activity {
          } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
             if (pd != null) pd.dismiss();
             unregisterReceiver(mReceiver);
+            pairing = false;
          }
       }
    };
