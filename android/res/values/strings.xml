@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="hello">Hello World, BlueMoteActivity!</string>
+    <string name="hello">BlueMote</string>
     <string name="app_name">BlueMote</string>
 
+    <string name="btn_connect">Connect Remote</string>
+    <string name="msg_scanning">Scanning for remote...</string>
 </resources>

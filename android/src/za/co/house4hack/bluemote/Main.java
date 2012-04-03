@@ -1,15 +1,24 @@
 package za.co.house4hack.bluemote;
 
+import java.util.Set;
+
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 public class Main extends Activity {
+   private static final String BLUEMOTE_NAME_PREFIX = "Toby";
    // Debugging
    private static final String TAG = "BlueMote";
    private static final boolean D = true;
@@ -36,6 +45,9 @@ public class Main extends Activity {
    private BluetoothAdapter mBluetoothAdapter = null;
    // Member object for the chat services
    private BluetoothService mService = null;
+   private BluetoothAdapter mBtAdapter;
+   
+   private ProgressDialog pd = null;
 
    /** Called when the activity is first created. */
    @Override
@@ -88,7 +100,7 @@ public class Main extends Activity {
          }
       }
    }
-   
+
    @Override
    protected void onDestroy() {
       // TODO Auto-generated method stub
@@ -96,61 +108,134 @@ public class Main extends Activity {
       // Stop the Bluetooth chat services
       if (mService != null) mService.stop();
    }
-   
+
    public void setupChat() {
       // Initialize the BluetoothService to perform bluetooth connections
-      mService = new BluetoothService(this, mHandler);      
+      mService = new BluetoothService(this, mHandler);
+   }
+
+   /**
+    * User wants to connect to a BlueMote device
+    * @param v
+    */
+   public void onConnect(View v) {
+      // Register for broadcasts when a device is discovered
+      IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+      this.registerReceiver(mReceiver, filter);
+
+      // Register for broadcasts when discovery has finished
+      filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+      this.registerReceiver(mReceiver, filter);
+
+      // Get the local Bluetooth adapter
+      mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+
+      // Get a set of currently paired devices
+      Set<BluetoothDevice> pairedDevices = mBtAdapter.getBondedDevices();
+      for (BluetoothDevice d : pairedDevices) {
+         if (d.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
+            // found our device, connect to it
+            if (mService != null) mService.connect(d, true);
+         }
+      }
+      
+      doDiscovery();
    }
    
-// The Handler that gets information back from the BluetoothService
+   private void doDiscovery() {
+      if (pd != null) {
+         pd.dismiss();
+      }
+      
+      pd = new ProgressDialog(this);
+      pd.setMessage(getString(R.string.msg_scanning));
+      pd.setIndeterminate(true);
+      pd.show();
+      
+      // If we're already discovering, stop it
+      if (mBtAdapter.isDiscovering()) {
+          mBtAdapter.cancelDiscovery();
+      }
+
+      // Request discover from BluetoothAdapter
+      mBtAdapter.startDiscovery();
+  }
+   
+   
+   // The Handler that gets information back from the BluetoothService
    private final Handler mHandler = new Handler() {
-       @Override
-       public void handleMessage(Message msg) {
-           switch (msg.what) {
-           case MESSAGE_STATE_CHANGE:
-               if(D) Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
+      @Override
+      public void handleMessage(Message msg) {
+         switch (msg.what) {
+            case MESSAGE_STATE_CHANGE:
+               if (D) Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
                switch (msg.arg1) {
-               case BluetoothService.STATE_CONNECTED:
-                  Toast.makeText(getApplicationContext(), "Connected " + msg.getData().getString(TOAST),
-                           Toast.LENGTH_SHORT).show();
-                   break;
-               case BluetoothService.STATE_CONNECTING:
-                  Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                           Toast.LENGTH_SHORT).show();
-                   break;
-               case BluetoothService.STATE_LISTEN:
-               case BluetoothService.STATE_NONE:
-                  Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                           Toast.LENGTH_SHORT).show();
-                   break;
+                  case BluetoothService.STATE_CONNECTED:
+                     Toast.makeText(getApplicationContext(),
+                              "Connected " + msg.getData().getString(TOAST), Toast.LENGTH_SHORT)
+                              .show();
+                     break;
+                  case BluetoothService.STATE_CONNECTING:
+                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
+                              Toast.LENGTH_SHORT).show();
+                     break;
+                  case BluetoothService.STATE_LISTEN:
+                  case BluetoothService.STATE_NONE:
+                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
+                              Toast.LENGTH_SHORT).show();
+                     break;
                }
                break;
-           case MESSAGE_WRITE:
+            case MESSAGE_WRITE:
                byte[] writeBuf = (byte[]) msg.obj;
                // construct a string from the buffer
                String writeMessage = new String(writeBuf);
-               Toast.makeText(getApplicationContext(), writeMessage,
-                        Toast.LENGTH_SHORT).show();
+               Toast.makeText(getApplicationContext(), writeMessage, Toast.LENGTH_SHORT).show();
                break;
-           case MESSAGE_READ:
+            case MESSAGE_READ:
                byte[] readBuf = (byte[]) msg.obj;
                // construct a string from the valid bytes in the buffer
                String readMessage = new String(readBuf, 0, msg.arg1);
-               Toast.makeText(getApplicationContext(), mConnectedDeviceName+":  " + readMessage,
+               Toast.makeText(getApplicationContext(), mConnectedDeviceName + ":  " + readMessage,
                         Toast.LENGTH_SHORT).show();
                break;
-           case MESSAGE_DEVICE_NAME:
+            case MESSAGE_DEVICE_NAME:
                // save the connected device's name
                mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-               Toast.makeText(getApplicationContext(), "Connected to "
-                              + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
+               Toast.makeText(getApplicationContext(), "Connected to " + mConnectedDeviceName,
+                        Toast.LENGTH_SHORT).show();
                break;
-           case MESSAGE_TOAST:
+            case MESSAGE_TOAST:
                Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                              Toast.LENGTH_SHORT).show();
+                        Toast.LENGTH_SHORT).show();
                break;
+         }
+      }
+   };
+   
+   // The BroadcastReceiver that listens for discovered devices and
+   // changes the title when discovery is finished
+   private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+       @Override
+       public void onReceive(Context context, Intent intent) {
+           String action = intent.getAction();
+
+           // When discovery finds a device
+           if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+               // Get the BluetoothDevice object from the Intent
+               BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+               // If it's already paired, skip it, because it's been listed already
+               if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+                  if (device.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
+                     mService.connect(device, false);
+                  }
+               }
+           // When discovery is finished, change the Activity title
+           } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+              if (pd != null) pd.dismiss();
            }
        }
    };
    
+
 }

@@ -5,8 +5,17 @@
     android:orientation="vertical" >
 
     <TextView
+        android:textAppearance="@android:style/TextAppearance.Large"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="@string/hello" />
+        android:text="@string/hello" 
+        android:layout_weight="1"
+        android:gravity="center_horizontal"/>
 
+    <Button
+        android:text="@string/btn_connect"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:onClick="onConnect"/>
+    
 </LinearLayout>
