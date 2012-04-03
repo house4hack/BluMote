@@ -29,11 +29,15 @@ void loop()
 { 
   //serialTxString("asdf");
   if(digitalRead(7)==HIGH){
+        delayval = 1000;
         serialTx(counter);
         serialTx('\r');
         serialTx('\n');
         counter++;
         if(counter=='a') counter = '0';
+  } else {
+     delayval = 200;
+    
   }
   if(digitalRead(8) == HIGH){
       pairMe(); 
@@ -61,18 +65,11 @@ void pairMe()
     //serialTxString("\r\n+STOAUT=1\r\n");
     //serialTxString("\r\n+STPIN=0000\r\n");
     //delay(2000);
-    while(digitalRead(7) == HIGH){
-      delay(1000);
-      digitalWrite(9, HIGH);
-      delay(100);
-      digitalWrite(9, LOW);
-    }
-    
+
+    disconnect();    
     serialTxString("\r\n+STWMOD=0\r\n");
-    
-
-
     delay(2000); 
+    disconnect();
     serialTxString("\r\n+INQ=1\r\n");
     while(digitalRead(8) == HIGH) ;
 
@@ -81,5 +78,14 @@ void pairMe()
     }
 }
 
- 
 
+void disconnect() {
+ 
+     while(digitalRead(7) == HIGH){
+      delay(1000);
+      digitalWrite(9, HIGH);
+      delay(100);
+      digitalWrite(9, LOW);
+    }
+  
+}
