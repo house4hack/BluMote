@@ -3,11 +3,14 @@ package za.co.house4hack.bluemote;
 import java.util.Set;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
@@ -46,7 +49,7 @@ public class Main extends Activity {
    // Member object for the chat services
    private BluetoothService mService = null;
    private BluetoothAdapter mBtAdapter;
-   
+
    private ProgressDialog pd = null;
 
    /** Called when the activity is first created. */
@@ -107,105 +110,114 @@ public class Main extends Activity {
       super.onDestroy();
       // Stop the Bluetooth chat services
       if (mService != null) mService.stop();
+      unregisterReceiver(mReceiver);
    }
 
    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-      if(D) Log.d(TAG, "onActivityResult " + resultCode);
+      if (D) Log.d(TAG, "onActivityResult " + resultCode);
       switch (requestCode) {
-      case REQUEST_CONNECT_DEVICE_SECURE:
-          // When DeviceListActivity returns with a device to connect
-          if (resultCode == Activity.RESULT_OK) {
-              //connectDevice(data, true);
-          }
-          break;
-      case REQUEST_CONNECT_DEVICE_INSECURE:
-          // When DeviceListActivity returns with a device to connect
-          if (resultCode == Activity.RESULT_OK) {
-              //connectDevice(data, false);
-          }
-          break;
-      case REQUEST_ENABLE_BT:
-          // When the request to enable Bluetooth returns
-          if (resultCode == Activity.RESULT_OK) {
-              // Bluetooth is now enabled, so set up a chat session
-              setupChat();
-          } else {
-              // User did not enable Bluetooth or an error occurred
-              Log.d(TAG, "BT not enabled");
-              Toast.makeText(this, R.string.msg_bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
-              finish();
-          }
+         case REQUEST_CONNECT_DEVICE_SECURE:
+            // When DeviceListActivity returns with a device to connect
+            if (resultCode == Activity.RESULT_OK) {
+               // connectDevice(data, true);
+            }
+            break;
+         case REQUEST_CONNECT_DEVICE_INSECURE:
+            // When DeviceListActivity returns with a device to connect
+            if (resultCode == Activity.RESULT_OK) {
+               // connectDevice(data, false);
+            }
+            break;
+         case REQUEST_ENABLE_BT:
+            // When the request to enable Bluetooth returns
+            if (resultCode == Activity.RESULT_OK) {
+               // Bluetooth is now enabled, so set up a chat session
+               setupChat();
+            } else {
+               // User did not enable Bluetooth or an error occurred
+               Log.d(TAG, "BT not enabled");
+               Toast.makeText(this, R.string.msg_bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
+               finish();
+            }
       }
-  }
-   
-   
+   }
+
    public void setupChat() {
       // Initialize the BluetoothService to perform bluetooth connections
       mService = new BluetoothService(this, mHandler);
    }
-   
-   public void connectDevice(BluetoothDevice device, boolean secure) {
+
+   public void connectDevice(final BluetoothDevice device, final boolean secure) {
       if (mService != null) {
          mService.connect(device, secure);
       } else {
-         Log.d(TAG, "mService null, can't connect to " + device.getName());         
+         Log.d(TAG, "mService null, can't connect to " + device.getName());
       }
    }
 
    /**
     * User wants to connect to a BlueMote device
+    * 
     * @param v
     */
    public void onConnect(View v) {
-      // Register for broadcasts when a device is discovered
-      IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-      this.registerReceiver(mReceiver, filter);
+      new AlertDialog.Builder(this).setTitle("Connect BlueMotes")
+      .setMessage("Please press button 1 and 2 on your BlueMotes to pair them")
+      .setPositiveButton("Ready", new OnClickListener() {
 
-      // Register for broadcasts when discovery has finished
-      filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-      this.registerReceiver(mReceiver, filter);
+         @Override
+         public void onClick(DialogInterface dialog, int which) {
+            dialog.dismiss();
+            // Register for broadcasts when a device is discovered
+            IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            registerReceiver(mReceiver, filter);
 
-      // Get the local Bluetooth adapter
-      mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+            // Register for broadcasts when discovery has finished
+            filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+            registerReceiver(mReceiver, filter);
 
-      // Get a set of currently paired devices
-      Set<BluetoothDevice> pairedDevices = mBtAdapter.getBondedDevices();
-      for (BluetoothDevice d : pairedDevices) {
-         if (d.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
-            // found our device, connect to it
-            Log.d(TAG, "Found device " + d.getName() + " - " + d.getUuids());
-            connectDevice(d, true);
+            // Get the local Bluetooth adapter
+            mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+
+            // Get a set of currently paired devices
+            Set<BluetoothDevice> pairedDevices = mBtAdapter.getBondedDevices();
+            for (BluetoothDevice d : pairedDevices) {
+               if (d.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
+                  // found our device, connect to it
+                  Log.d(TAG, "Found device " + d.getName() + " - " + d.getUuids());
+                  connectDevice(d, true);
+               }
+            }
+
+            doDiscovery();
          }
-      }
-      
-      doDiscovery();
+      })
+      .create().show();
    }
-   
+
    public void onDisconnect(View v) {
-      mService.stop();
       finish();
    }
-   
+
    private void doDiscovery() {
       if (pd != null) {
          pd.dismiss();
       }
-      
+
       pd = new ProgressDialog(this);
       pd.setMessage(getString(R.string.msg_scanning));
       pd.setIndeterminate(true);
       pd.show();
-      
+
       // If we're already discovering, stop it
       if (mBtAdapter.isDiscovering()) {
-          mBtAdapter.cancelDiscovery();
+         mBtAdapter.cancelDiscovery();
       }
 
       // Request discover from BluetoothAdapter
       mBtAdapter.startDiscovery();
-  }
-   
-   
+   }
+
    // The Handler that gets information back from the BluetoothService
    private final Handler mHandler = new Handler() {
       @Override
@@ -218,15 +230,16 @@ public class Main extends Activity {
                      Toast.makeText(getApplicationContext(),
                               "Connected " + msg.getData().getString(TOAST), Toast.LENGTH_SHORT)
                               .show();
+                     sendBluetooth("*");
                      break;
                   case BluetoothService.STATE_CONNECTING:
-                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                              Toast.LENGTH_SHORT).show();
+//                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
+//                              Toast.LENGTH_SHORT).show();
                      break;
                   case BluetoothService.STATE_LISTEN:
                   case BluetoothService.STATE_NONE:
-                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                              Toast.LENGTH_SHORT).show();
+//                     Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
+//                              Toast.LENGTH_SHORT).show();
                      break;
                }
                break;
@@ -256,32 +269,50 @@ public class Main extends Activity {
          }
       }
    };
-   
+
+   /**
+    * Sends a message.
+    * 
+    * @param message
+    *           A string of text to send.
+    */
+   private void sendBluetooth(String message) {
+      // Check that we're actually connected before trying anything
+      if (mService.getState() != BluetoothService.STATE_CONNECTED) { return; }
+
+      // Check that there's actually something to send
+      if (message.length() > 0) {
+         // Get the message bytes and tell the BluetoothChatService to write
+         byte[] send = message.getBytes();
+         mService.write(send);
+      }
+   }
+
    // The BroadcastReceiver that listens for discovered devices and
    // changes the title when discovery is finished
    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
-       @Override
-       public void onReceive(Context context, Intent intent) {
-           String action = intent.getAction();
+      @Override
+      public void onReceive(Context context, Intent intent) {
+         String action = intent.getAction();
 
-           // When discovery finds a device
-           if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-               // Get the BluetoothDevice object from the Intent
-               BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-               // If it's already paired, skip it, because it's been listed already
-               if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
-                  if (device.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
-                     Log.d(TAG, "Found unpaired device " + device.getName() + " - " + device.getUuids());
-                     connectDevice(device, false);
-                  }
+         // When discovery finds a device
+         if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+            // Get the BluetoothDevice object from the Intent
+            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            // If it's already paired, skip it, because it's been listed already
+            if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+               if (device.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
+                  Log.d(TAG,
+                           "Found unpaired device " + device.getName() + " - " + device.getUuids());
+                  connectDevice(device, false);
                }
-           // When discovery is finished, change the Activity title
-           } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-              if (pd != null) pd.dismiss();
-              unregisterReceiver(mReceiver);
-           }
-       }
+            }
+            // When discovery is finished, change the Activity title
+         } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+            if (pd != null) pd.dismiss();
+            unregisterReceiver(mReceiver);
+         }
+      }
    };
-   
 
 }
