@@ -70,7 +70,11 @@ void loop()
           sendchar = '0';
     }
   }
-  doBlink(200);
+  
+  if(pairing==1){
+    pairMe();
+  }
+  doBlink(1000);
 } 
  
  
@@ -90,7 +94,7 @@ void pairMe()
     delay(2000); 
     disconnect();
     serialTxString("\r\n+INQ=1\r\n");
-    while(pairing == 1) ; // wait for pairing to complete
+    while(pairing == 1) {doBlink(100);}; // wait for pairing to complete
 
 }
 
@@ -102,6 +106,7 @@ void disconnect() {
       digitalWrite(BTDISCONNECT, HIGH);
       delay(100);
       digitalWrite(BTDISCONNECT, LOW);
+      
     }
   
 }
@@ -128,16 +133,15 @@ SIGNAL (SIG_PCINT)
     digitalWrite(PAIRINGPIN, LOW);
     
     
-    if(digitalRead(BUTTON1) == HIGH) {
+    if(digitalRead(BUTTON1) == LOW) {
          sendchar = '1';
          doBlink(1000);
     }
-    if(digitalRead(BUTTON2) == HIGH) {
+    if(digitalRead(BUTTON2) == LOW) {
       if(sendchar=='1') {
-           digitalWrite(PAIRINGPIN, HIGH);
+           digitalWrite(PAIRINGPIN, LOW);
            pairing = 1;
            sendchar = '0';
-           pairMe();
       } else sendchar = '2'; 
     }
     
