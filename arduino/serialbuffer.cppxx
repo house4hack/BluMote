@@ -1,0 +1,129 @@
+#include "serialbuffer.h"
+#define BAUDRATE 9600
+//#define BAUD_CALC ((F_CPU/BAUDRATE/16)-1)
+#define BAUD_CALC (F_CPU / 4 / BAUDRATE - 1) / 2
+
+#define BUFFERSIZE 2
+
+
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
+
+
+
+
+
+char commandBuffer[BUFFERSIZE];
+
+volatile int bufferStepThrough = 0;
+volatile int bytesInBuffer = 0;
+
+
+/** \fn void InitializeSerial()
+ * \brief Initializes the USART0.
+ * \param void
+ * \return void
+ */
+void InitializeSerial(void){
+                UCSRA = 1 << 1;
+                UBRRH = (unsigned char)(BAUD_CALC>>8);//Set baud rate
+                UBRRL = (unsigned char)BAUD_CALC;//Set baud rate
+                UCSRB = _BV(TXEN) | _BV(RXEN) | _BV(RXCIE);
+                UCSRC = (1<<USBS)|(3<<UCSZ0);//Set frame format
+}
+
+
+
+/** \fn void serialTx( unsigned char output )
+ * \brief Transmits an individual byte over serial.
+ * \param unsigned char output
+ * \return void
+ */
+void serialTx( unsigned char output )
+{
+                while ( !( UCSRA & (1<<UDRE)) ){}
+                UDR = output;//Sends data through buffer
+}
+
+/** \fn unsigned char serialRx()
+ * \brief Receives an individual byte for serial and echoes it back.
+ * \param void
+ * \return unsigned char received
+ */
+unsigned char serialRx( void )
+{
+                char received = UDR;
+                return received;//Get and return received data
+}
+
+/** \fn void serialTxString( char * str)
+ * \brief Transmits a string, byte by byte, until it sees a null terminator.
+ * \param char * str
+ * \return void
+ */
+void serialTxString(char * str) {
+                int i=0;
+                while(str[i] != '\0') {
+                    serialTx(str[i++]);
+                }
+                PORTB ^= 0xFF;
+}
+
+/** \fn void addToBuffer(char newInput)
+ * \brief Given a new element, add it to the end of the buffer
+ *  given we have not already filled it. If the buffer is full,
+ *  it will OVERWRITE THE RECENT COMMANDS, so BEWARE.
+ * \param newInput - a new character byte to add.
+ * \return void
+ */
+void addToBuffer(char newInput){
+    bufferStepThrough++;
+    bytesInBuffer++;
+    if(bufferStepThrough >= BUFFERSIZE) bufferStepThrough = 0;
+    commandBuffer[bufferStepThrough] = newInput;
+}
+
+/** \fn char readFromBuffer(void)
+ * \brief returns the most recent command in the buffer.
+ * \param void
+ * \return void
+ */
+char readFromBuffer(void){
+    while(bytesInBuffer == 0){}; //How can I get around needing this?
+    char tmp = commandBuffer[bufferStepThrough];
+    if(bufferStepThrough == 0) bufferStepThrough = BUFFERSIZE - 1;
+    else bufferStepThrough--;
+    bytesInBuffer--;
+    return tmp;
+}
+
+/** \fn char isBufferEmpty(void)
+ * \brief returns 1 if the buffer is empty, 0 if not.
+ * \param void
+ * \return char
+ */
+char isBufferEmpty(void){
+    if(bytesInBuffer > 0) return 0;
+    else return 1;
+}
+
+/** \fn char getBufferSize(void)
+ * \brief returns the number of bytes in the buffer.
+ * \param void
+ * \return int
+ */
+int getBufferSize(void){
+    return bytesInBuffer;
+}
+
+/** \fn ISR(USART0_RX_vect)
+ * \brief Handles serial receive interrupts.
+ * \param void
+ * \return void
+ */
+ISR(USART_RX_vect){
+    addToBuffer(UDR); //Add to buffer
+}
+
