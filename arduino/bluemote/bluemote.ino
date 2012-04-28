@@ -101,6 +101,7 @@ void loop() {
     
     if(digitalRead(BTCONNECTED) == HIGH){
       serialTx(sendchar);
+      delay(1000);
     }
     
     sendchar = '0';
