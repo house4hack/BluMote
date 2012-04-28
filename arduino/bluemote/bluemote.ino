@@ -51,18 +51,18 @@ void setup() {
   digitalWrite(BTDISCONNECT, LOW);
 
   InitializeSerial();
-  
-   PCMSK |= (1<<PCINT0); // button 3
-   PCMSK |= (1<<PCINT1); // button 2
-   PCMSK |= (1<<PCINT2); // button 1
+  PCMSK |= (1<<PCINT0); // button 3
+  PCMSK |= (1<<PCINT1); // button 2
+  PCMSK |= (1<<PCINT2); // button 1
+  GIMSK  |= (1<<PCIE); // enable PCINT interrupt in the general interrupt mask
 
-   GIMSK  |= (1<<PCIE); // enable PCINT interrupt in the general interrupt mask
+  
   turnBlueTooth(LOW);
 } 
  
 void loop() { 
    system_sleep();
-
+   sendchar = '0';
   // wait for switch press and debounce
   //while (anyButtonPressed()); // wait for all buttons to be released
   while (!anyButtonPressed()); // now wait for button to be pressed
@@ -95,7 +95,7 @@ void loop() {
   if(sendchar != '0'){
     turnBlueTooth(HIGH);
     long started = millis();
-    while((digitalRead(BTCONNECTED) == LOW)) { //&& ((millis()-started) < TIMEOUT)){
+    while((digitalRead(BTCONNECTED) == LOW) && ((millis()-started) < TIMEOUT)){
       doBlink(1000);
     }
     
@@ -121,30 +121,30 @@ boolean anyButtonPressed() {
  
 SIGNAL (SIG_PCINT) {
  /// just wake up
+
 }
  
 void pairMe() {
     turnBlueTooth(HIGH);
     serialTxString("\r\n+STWMOD=0\r\n");
-    //serialTxString("\r\n+STNA=BlueMote\r\n");
-    //serialTxString("\r\n+STAUTO=1\r\n");
-    //serialTxString("\r\n+STOAUT=1\r\n");
-    //serialTxString("\r\n+STPIN=0000\r\n");
+    serialTxString("\r\n+STNA=BlueMote\r\n");
+    serialTxString("\r\n+STAUTO=1\r\n");
+    serialTxString("\r\n+STOAUT=1\r\n");
+    serialTxString("\r\n+STPIN=0000\r\n");
     delay(2000); 
-    //disconnect();
+    disconnect();
     serialTxString("\r\n+INQ=1\r\n");
 
     while (pairing == 1) {
       if (digitalRead(BTCONNECTED) == HIGH ||
-        digitalRead(BUTTON1) == HIGH ||
-        digitalRead(BUTTON2) == HIGH ||
-        digitalRead(BUTTON3) == HIGH ||
-        digitalRead(BUTTON4) == HIGH) {
+        anyButtonPressed()) {
           pairing = 0;
       }
       
       doBlinkAlt(1000);
     }; // wait for pairing to complete
+    turnBlueTooth(LOW);
+     
 }
 
 void disconnect() {
@@ -160,10 +160,11 @@ void disconnect() {
 void system_sleep() {
   //cbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter OFF
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
+
   sleep_enable();
   sleep_mode();                        // System sleeps here
   sleep_disable();                     // System continues execution here when watchdog timed out 
-  delay(400);
+  //delay(400);
   //sbi(ADCSRA,ADEN);                    // switch Analog to Digitalconverter ON
 }
 
@@ -171,6 +172,7 @@ void turnBlueTooth(int state){
    digitalWrite(BTPOWER, state); 
    digitalWrite(BLUE_LED, state); 
 }
+
 
 void doBlink(int delayval){
       digitalWrite(RED_LED, HIGH);   // set the LED on
