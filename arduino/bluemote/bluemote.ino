@@ -62,25 +62,11 @@ void setup() {
  
 void loop() { 
   // system_sleep();
-  if(sendchar != '0'){
-    turnBlueTooth(HIGH);
-    long started = millis();
-    while((digitalRead(BTCONNECTED) == LOW)) { //&& ((millis()-started) < TIMEOUT)){
-      doBlink(1000);
-    }
-    
-    if(digitalRead(BTCONNECTED) == HIGH){
-      serialTx(sendchar);
-    }
-    
-    sendchar = '0';
-    turnBlueTooth(LOW);
-  }
-  
-  if (digitalRead(BUTTON1) == PRESSED || digitalRead(BUTTON2) == PRESSED) {
-    // debounce
-    delay(500);
-  }
+
+  // wait for switch press and debounce
+  while (anyButtonPressed()); // wait for all buttons to be released
+  while (!anyButtonPressed()); // now wait for button to be pressed
+  delay(250); // debounce  
 
   if (digitalRead(BUTTON1) == PRESSED && digitalRead(BUTTON2) == PRESSED) {
     pairing = 1;
@@ -106,8 +92,31 @@ void loop() {
     pairMe();
   }
   
+  if(sendchar != '0'){
+    turnBlueTooth(HIGH);
+    long started = millis();
+    while((digitalRead(BTCONNECTED) == LOW)) { //&& ((millis()-started) < TIMEOUT)){
+      doBlink(1000);
+    }
+    
+    if(digitalRead(BTCONNECTED) == HIGH){
+      serialTx(sendchar);
+    }
+    
+    sendchar = '0';
+    turnBlueTooth(LOW);
+  }
+  
   //doBlink(1000);
 } 
+
+boolean anyButtonPressed() {
+  if (digitalRead(BUTTON1) == PRESSED) return true;
+  if (digitalRead(BUTTON2) == PRESSED) return true;
+  if (digitalRead(BUTTON3) == PRESSED) return true;
+  if (digitalRead(BUTTON4) == PRESSED) return true;  
+  return false;
+}
  
 SIGNAL (SIG_PCINT) {
   sendchar = '0'; 
