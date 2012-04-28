@@ -1,5 +1,7 @@
 package za.co.house4hack.bluemote;
 
+import java.io.IOException;
+import java.util.Date;
 import java.util.Set;
 
 import android.app.Activity;
@@ -13,7 +15,13 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.AssetFileDescriptor;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -251,20 +259,23 @@ public class Main extends Activity {
                byte[] writeBuf = (byte[]) msg.obj;
                // construct a string from the buffer
                String writeMessage = new String(writeBuf);
-               Toast.makeText(getApplicationContext(), writeMessage, Toast.LENGTH_SHORT).show();
+               if (D) Toast.makeText(getApplicationContext(), writeMessage, Toast.LENGTH_SHORT).show();
                break;
             case MESSAGE_READ:
                byte[] readBuf = (byte[]) msg.obj;
                // construct a string from the valid bytes in the buffer
                String readMessage = new String(readBuf, 0, msg.arg1);
-               Toast.makeText(getApplicationContext(), mConnectedDeviceName + ":  " + readMessage,
+               if (D) Toast.makeText(getApplicationContext(), mConnectedDeviceName + ":  " + readMessage,
                         Toast.LENGTH_SHORT).show();
+               processCommand(new String(readBuf));
                break;
             case MESSAGE_DEVICE_NAME:
                // save the connected device's name
                mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-               Toast.makeText(getApplicationContext(), "Connected to " + mConnectedDeviceName,
-                        Toast.LENGTH_SHORT).show();
+               if (D && mConnectedDeviceName != null) {
+                  Toast.makeText(getApplicationContext(), "Connected to " + mConnectedDeviceName,
+                           Toast.LENGTH_SHORT).show();
+               }
                break;
             case MESSAGE_TOAST:
                Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
@@ -320,4 +331,86 @@ public class Main extends Activity {
       }
    };
 
+   protected void processCommand(String cmd) {
+      // for now we support 4 buttons
+      if (cmd.startsWith("1")) {
+         Intent intent = new Intent(Intent.ACTION_CALL);
+         intent.setData(Uri.parse("tel:10111"));
+         startActivity(intent);
+      } else if (cmd.startsWith("2")) {
+         soundAlarm(this);         
+      } else if (cmd.startsWith("3")) {
+         recordAudio(this);
+      } else if (cmd.startsWith("4")) {
+         
+      }
+   }
+
+   private void recordAudio(Context context) {
+      final MediaRecorder recorder = new MediaRecorder();
+      try {
+         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+         recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+         recorder.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + 
+                  "/BluMoteRecord" + new Date().getTime() + ".3gp");
+         recorder.prepare();
+      } catch (IOException e1) {
+         Toast.makeText(context, "Error recording" + e1.getMessage(), Toast.LENGTH_LONG).show();
+      }
+      
+      recorder.start();   // Recording is now started
+      
+      Thread t = new Thread() {
+         public void run() {
+            try {
+               sleep(10000);
+            } catch (InterruptedException e) {
+            }
+            recorder.stop();
+            recorder.reset();   // You can reuse the object by going back to setAudioSource() step
+            recorder.release(); // Now the object cannot be reused      
+         };
+      };
+      t.start();
+   }
+   
+   /**
+    * Sound the anti-theft alarm
+    * 
+    * @param context
+    */
+   private void soundAlarm(Context context) {
+      // turn up volume to full
+      AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+
+      audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, audioManager.getStreamMaxVolume(AudioManager.STREAM_SYSTEM),
+               AudioManager.FLAG_PLAY_SOUND);
+      audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
+               AudioManager.FLAG_PLAY_SOUND);
+
+      // play alarm sound file
+      try {
+         AssetFileDescriptor afd = context.getAssets().openFd("theft_alarm.mp3");
+         final MediaPlayer player = new MediaPlayer();
+         player.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+         player.prepare();
+         player.setLooping(true);
+         player.start();
+         
+         Thread t = new Thread() {
+            public void run() {
+               try {
+                  sleep(5000);
+               } catch (InterruptedException e) {
+               }
+               player.stop();
+            };
+         };
+         t.start();
+      } catch (Exception e) {
+         // aaah crap, I guess this device gets stolen :-(
+         Log.e(Main.TAG, "Error playing alarm", e);
+      }
+   }
 }
