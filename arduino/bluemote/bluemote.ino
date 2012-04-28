@@ -68,6 +68,10 @@ void pairMe()
 
     disconnect();    
     serialTxString("\r\n+STWMOD=0\r\n");
+    serialTxString("\r\n+STNA=BlueMote\r\n");
+    serialTxString("\r\n+STAUTO=1\r\n");
+    serialTxString("\r\n+STOAUT=1\r\n");
+    serialTxString("\r\n+STPIN=0000\r\n");
     delay(2000); 
     disconnect();
     serialTxString("\r\n+INQ=1\r\n");
