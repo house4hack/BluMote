@@ -1,5 +1,7 @@
 package za.co.house4hack.bluemote;
 
+import java.io.IOException;
+import java.util.Date;
 import java.util.Set;
 
 import android.app.Activity;
@@ -16,8 +18,10 @@ import android.content.IntentFilter;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -57,8 +61,6 @@ public class Main extends Activity {
 
    private ProgressDialog pd = null;
    private boolean pairing = false;
-
-   private static MediaPlayer player;
 
    /** Called when the activity is first created. */
    @Override
@@ -338,12 +340,41 @@ public class Main extends Activity {
       } else if (cmd.startsWith("2")) {
          soundAlarm(this);         
       } else if (cmd.startsWith("3")) {
-
+         recordAudio(this);
       } else if (cmd.startsWith("4")) {
          
       }
    }
 
+   private void recordAudio(Context context) {
+      final MediaRecorder recorder = new MediaRecorder();
+      try {
+         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+         recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+         recorder.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + 
+                  "/BluMoteRecord" + new Date().getTime() + ".3gp");
+         recorder.prepare();
+      } catch (IOException e1) {
+         Toast.makeText(context, "Error recording" + e1.getMessage(), Toast.LENGTH_LONG).show();
+      }
+      
+      recorder.start();   // Recording is now started
+      
+      Thread t = new Thread() {
+         public void run() {
+            try {
+               sleep(10000);
+            } catch (InterruptedException e) {
+            }
+            recorder.stop();
+            recorder.reset();   // You can reuse the object by going back to setAudioSource() step
+            recorder.release(); // Now the object cannot be reused      
+         };
+      };
+      t.start();
+   }
+   
    /**
     * Sound the anti-theft alarm
     * 
@@ -361,11 +392,22 @@ public class Main extends Activity {
       // play alarm sound file
       try {
          AssetFileDescriptor afd = context.getAssets().openFd("theft_alarm.mp3");
-         player = new MediaPlayer();
+         final MediaPlayer player = new MediaPlayer();
          player.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
          player.prepare();
          player.setLooping(true);
          player.start();
+         
+         Thread t = new Thread() {
+            public void run() {
+               try {
+                  sleep(5000);
+               } catch (InterruptedException e) {
+               }
+               player.stop();
+            };
+         };
+         t.start();
       } catch (Exception e) {
          // aaah crap, I guess this device gets stolen :-(
          Log.e(Main.TAG, "Error playing alarm", e);
