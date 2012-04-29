@@ -2,6 +2,7 @@ package za.co.house4hack.bluemote;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import android.app.Activity;
@@ -15,11 +16,12 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -29,7 +31,9 @@ import android.view.View;
 import android.widget.Toast;
 
 public class Main extends Activity {
-   private static final String BLUEMOTE_NAME_PREFIX = "BlueMote";
+   private static final String SHAC_OPEN = "za.co.house4hack.shac.OPEN";
+
+private static final String BLUEMOTE_NAME_PREFIX = "BlueMote";
 
    // Debugging
    private static final String TAG = "BlueMote";
@@ -334,9 +338,16 @@ public class Main extends Activity {
    protected void processCommand(String cmd) {
       // for now we support 4 buttons
       if (cmd.startsWith("1")) {
-         Intent intent = new Intent(Intent.ACTION_CALL);
+         /*Intent intent = new Intent(Intent.ACTION_CALL);
          intent.setData(Uri.parse("tel:10111"));
-         startActivity(intent);
+         startActivity(intent);*/
+         if(isIntentAvailable(this,SHAC_OPEN)){    	  
+	    	  Intent intent = new Intent(SHAC_OPEN);
+	    	  intent.putExtra("access", "door");
+	    	  startActivity(intent);
+         } else {
+        	 Toast.makeText(this, "SHAC is not installed", Toast.LENGTH_SHORT).show();
+         }
       } else if (cmd.startsWith("2")) {
          soundAlarm(this);         
       } else if (cmd.startsWith("3")) {
@@ -346,6 +357,19 @@ public class Main extends Activity {
       }
    }
 
+   public boolean isIntentAvailable(Context context, String action) {
+	    final PackageManager packageManager = context.getPackageManager();
+	    final Intent intent = new Intent(action);
+	    List<ResolveInfo> resolveInfo =
+	            packageManager.queryIntentActivities(intent,
+	                    PackageManager.MATCH_DEFAULT_ONLY);
+	   if (resolveInfo.size() > 0) {
+	   		return true;
+	   	}
+	   return false;
+	}
+   
+   
    private void recordAudio(Context context) {
       final MediaRecorder recorder = new MediaRecorder();
       try {
