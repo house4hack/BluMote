@@ -196,7 +196,7 @@ public class Main extends Activity {
             for (BluetoothDevice d : pairedDevices) {
                if (d.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
                   // found our device, connect to it
-                  Log.d(TAG, "Found device " + d.getName() + " - " + d.getUuids());
+                  Log.d(TAG, "Found device " + d.getName() + " - " + d.getAddress());
                   connectDevice(d, true);
                }
             }
@@ -318,7 +318,7 @@ public class Main extends Activity {
             if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
                if (device.getName().startsWith(BLUEMOTE_NAME_PREFIX)) {
                   Log.d(TAG,
-                           "Found unpaired device " + device.getName() + " - " + device.getUuids());
+                           "Found unpaired device " + device.getName() + " - " + device.getAddress());
                   connectDevice(device, false);
                }
             }
