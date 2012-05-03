@@ -2,15 +2,23 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical" >
+    android:orientation="vertical" 
+    android:background="@drawable/main_background">
 
     <TextView
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
         android:gravity="center_horizontal"
         android:text="@string/hello"
         android:textAppearance="@android:style/TextAppearance.Large" />
+
+    <ImageView
+        android:id="@+id/imageView1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:scaleType="center"
+        android:src="@drawable/ic_launcher" />
 
     <LinearLayout
         android:layout_width="fill_parent"
