@@ -12,16 +12,19 @@ import android.content.res.AssetFileDescriptor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Vibrator;
 import android.util.Log;
 import android.widget.Toast;
 
 // The Handler that gets information back from the BluetoothService
 public class BluMoteHandler extends Handler {
    private static final String SHAC_OPEN = "za.co.house4hack.shac.OPEN";
+   private static final String BATTERYFU = "sync://on";
    
    // Debugging
    private static final String TAG = "BlueMoteHandler";
@@ -98,12 +101,37 @@ public class BluMoteHandler extends Handler {
    
 
    protected void processCommand(String cmd) {
+      // vibrate to let user know we received command
+      Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+      v.vibrate(250);
+      
       // for now we support 4 buttons
       if (cmd.startsWith("1")) {
          if (isIntentAvailable(context, SHAC_OPEN)) {
-            Intent intent = new Intent(SHAC_OPEN);
-            intent.putExtra("access", "door");
-            context.startActivity(intent);
+            if (!isNetworkConnected(context) && isIntentAvailable(context, BATTERYFU)) {
+               // enable data in case it's not. We'll do a sync, which will give us enough time
+               context.sendBroadcast(new Intent(Intent.ACTION_VIEW, Uri.parse(BATTERYFU)));
+               // we need to wait at least 10 seconds for data to connect
+               new Thread() {
+                  public void run() {
+                     try { sleep(10*1000); } catch (Exception e) {}
+                     post(new Runnable() {
+                        @Override
+                        public void run() {
+                           Intent intent = new Intent(SHAC_OPEN);
+                           intent.putExtra("access", "door");
+                           intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                           context.startActivity(intent);
+                        }
+                     });
+                  };
+               }.start();
+            } else {
+               Intent intent = new Intent(SHAC_OPEN);
+               intent.putExtra("access", "door");
+               intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+               context.startActivity(intent);
+            }
          } else {
             Toast.makeText(context, "SHAC is not installed", Toast.LENGTH_SHORT).show();
          }
@@ -127,6 +155,26 @@ public class BluMoteHandler extends Handler {
       return false;
    }
 
+   /**
+    * Returns true if there is a network connected
+    * 
+    * @param context
+    * @return
+    */
+   public boolean isNetworkConnected(Context context) {
+      boolean retVal = false;
+
+      ConnectivityManager cm = (ConnectivityManager) context
+               .getSystemService(context.CONNECTIVITY_SERVICE);
+      if (cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnectedOrConnecting()) {
+         retVal = true;
+      } else {
+         retVal = false;
+      }
+
+      return retVal;
+   }   
+   
    private void recordAudio(Context context) {
       final MediaRecorder recorder = new MediaRecorder();
       try {
