@@ -34,32 +34,17 @@ import android.view.View;
 import android.widget.Toast;
 
 public class Main extends Activity {
-   private static final String SHAC_OPEN = "za.co.house4hack.shac.OPEN";
-
    private static final String BLUEMOTE_NAME_PREFIX = "BluMote";
 
    // Debugging
    private static final String TAG = "BlueMote";
    private static final boolean D = true;
 
-   // Message types sent from the BluetoothService Handler
-   public static final int MESSAGE_STATE_CHANGE = 1;
-   public static final int MESSAGE_READ = 2;
-   public static final int MESSAGE_WRITE = 3;
-   public static final int MESSAGE_DEVICE_NAME = 4;
-   public static final int MESSAGE_TOAST = 5;
-
-   // Key names received from the BluetoothService Handler
-   public static final String DEVICE_NAME = "device_name";
-   public static final String TOAST = "toast";
-
    // Intent request codes
    private static final int REQUEST_CONNECT_DEVICE_SECURE = 1;
    private static final int REQUEST_CONNECT_DEVICE_INSECURE = 2;
    private static final int REQUEST_ENABLE_BT = 3;
 
-   // Name of the connected device
-   private String mConnectedDeviceName = null;
    // Array adapter for the conversation thread
    private BluetoothAdapter mBluetoothAdapter = null;
    // Member object for the chat services
@@ -113,8 +98,6 @@ public class Main extends Activity {
          finish();
          return;
       }
-
-      doBindService();
    }
 
    @Override
@@ -129,7 +112,7 @@ public class Main extends Activity {
          startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
          // Otherwise, setup the chat session
       } else {
-         if (mService == null) setupChat();
+         if (mService == null) doBindService();
       }
    }
 //
@@ -184,7 +167,7 @@ public class Main extends Activity {
             // When the request to enable Bluetooth returns
             if (resultCode == Activity.RESULT_OK) {
                // Bluetooth is now enabled, so set up a chat session
-               setupChat();
+               doBindService();
             } else {
                // User did not enable Bluetooth or an error occurred
                Log.d(TAG, "BT not enabled");
@@ -192,11 +175,6 @@ public class Main extends Activity {
                finish();
             }
       }
-   }
-
-   public void setupChat() {
-      // Initialize the BluetoothService to perform bluetooth connections
-//      mService = new BluetoothService(this, mHandler);
    }
 
    public void connectDevice(final BluetoothDevice device, final boolean secure) {
@@ -270,76 +248,6 @@ public class Main extends Activity {
       mBtAdapter.startDiscovery();
    }
 
-   // The Handler that gets information back from the BluetoothService
-   private final Handler mHandler = new Handler() {
-      @Override
-      public void handleMessage(Message msg) {
-         switch (msg.what) {
-            case MESSAGE_STATE_CHANGE:
-               if (D) Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
-               switch (msg.arg1) {
-                  case BluetoothService.STATE_CONNECTED:
-                     Toast.makeText(getApplicationContext(), "Connected " + msg.getData().getString(TOAST), Toast.LENGTH_SHORT).show();
-                     if (pairing) sendBluetooth("*");
-                     break;
-                  case BluetoothService.STATE_CONNECTING:
-                     // Toast.makeText(getApplicationContext(),
-                     // msg.getData().getString(TOAST),
-                     // Toast.LENGTH_SHORT).show();
-                     break;
-                  case BluetoothService.STATE_LISTEN:
-                  case BluetoothService.STATE_NONE:
-                     // Toast.makeText(getApplicationContext(),
-                     // msg.getData().getString(TOAST),
-                     // Toast.LENGTH_SHORT).show();
-                     break;
-               }
-               break;
-            case MESSAGE_WRITE:
-               byte[] writeBuf = (byte[]) msg.obj;
-               // construct a string from the buffer
-               String writeMessage = new String(writeBuf);
-               if (D) Toast.makeText(getApplicationContext(), writeMessage, Toast.LENGTH_SHORT).show();
-               break;
-            case MESSAGE_READ:
-               byte[] readBuf = (byte[]) msg.obj;
-               // construct a string from the valid bytes in the buffer
-               String readMessage = new String(readBuf, 0, msg.arg1);
-               if (D) Toast.makeText(getApplicationContext(), mConnectedDeviceName + ":  " + readMessage, Toast.LENGTH_SHORT).show();
-               processCommand(new String(readBuf));
-               break;
-            case MESSAGE_DEVICE_NAME:
-               // save the connected device's name
-               mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-               if (D && mConnectedDeviceName != null) {
-                  Toast.makeText(getApplicationContext(), "Connected to " + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
-               }
-               break;
-            case MESSAGE_TOAST:
-               Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST), Toast.LENGTH_SHORT).show();
-               break;
-         }
-      }
-   };
-
-   /**
-    * Sends a message.
-    * 
-    * @param message
-    *           A string of text to send.
-    */
-   private void sendBluetooth(String message) {
-      // Check that we're actually connected before trying anything
-      if (mService.getState() != BluetoothService.STATE_CONNECTED) { return; }
-
-      // Check that there's actually something to send
-      if (message.length() > 0) {
-         // Get the message bytes and tell the BluetoothChatService to write
-         byte[] send = message.getBytes();
-         mService.write(send);
-      }
-   }
-
    // The BroadcastReceiver that listens for discovered devices and
    // changes the title when discovery is finished
    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
@@ -367,104 +275,4 @@ public class Main extends Activity {
       }
    };
 
-   protected void processCommand(String cmd) {
-      // for now we support 4 buttons
-      if (cmd.startsWith("1")) {
-         /*
-          * Intent intent = new Intent(Intent.ACTION_CALL);
-          * intent.setData(Uri.parse("tel:10111"));
-          * startActivity(intent);
-          */
-         if (isIntentAvailable(this, SHAC_OPEN)) {
-            Intent intent = new Intent(SHAC_OPEN);
-            intent.putExtra("access", "door");
-            startActivity(intent);
-         } else {
-            Toast.makeText(this, "SHAC is not installed", Toast.LENGTH_SHORT).show();
-         }
-      } else if (cmd.startsWith("2")) {
-         soundAlarm(this);
-      } else if (cmd.startsWith("3")) {
-         recordAudio(this);
-      } else if (cmd.startsWith("4")) {
-
-      }
-   }
-
-   public boolean isIntentAvailable(Context context, String action) {
-      final PackageManager packageManager = context.getPackageManager();
-      final Intent intent = new Intent(action);
-      List<ResolveInfo> resolveInfo = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
-      if (resolveInfo.size() > 0) { return true; }
-      return false;
-   }
-
-   private void recordAudio(Context context) {
-      final MediaRecorder recorder = new MediaRecorder();
-      try {
-         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-         recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-         recorder.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/BluMoteRecord" + new Date().getTime()
-                  + ".3gp");
-         recorder.prepare();
-      } catch (IOException e1) {
-         Toast.makeText(context, "Error recording" + e1.getMessage(), Toast.LENGTH_LONG).show();
-      }
-
-      recorder.start(); // Recording is now started
-
-      Thread t = new Thread() {
-         public void run() {
-            try {
-               sleep(10000);
-            } catch (InterruptedException e) {
-            }
-            recorder.stop();
-            recorder.reset(); // You can reuse the object by going back to
-                              // setAudioSource() step
-            recorder.release(); // Now the object cannot be reused
-         };
-      };
-      t.start();
-   }
-
-   /**
-    * Sound the anti-theft alarm
-    * 
-    * @param context
-    */
-   private void soundAlarm(Context context) {
-      // turn up volume to full
-      AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-
-      audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, audioManager.getStreamMaxVolume(AudioManager.STREAM_SYSTEM),
-               AudioManager.FLAG_PLAY_SOUND);
-      audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-               AudioManager.FLAG_PLAY_SOUND);
-
-      // play alarm sound file
-      try {
-         AssetFileDescriptor afd = context.getAssets().openFd("theft_alarm.mp3");
-         final MediaPlayer player = new MediaPlayer();
-         player.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-         player.prepare();
-         player.setLooping(true);
-         player.start();
-
-         Thread t = new Thread() {
-            public void run() {
-               try {
-                  sleep(5000);
-               } catch (InterruptedException e) {
-               }
-               player.stop();
-            };
-         };
-         t.start();
-      } catch (Exception e) {
-         // aaah crap, I guess this device gets stolen :-(
-         Log.e(Main.TAG, "Error playing alarm", e);
-      }
-   }
 }
