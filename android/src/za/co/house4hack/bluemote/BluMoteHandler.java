@@ -108,9 +108,13 @@ public class BluMoteHandler extends Handler {
       // for now we support 4 buttons
       if (cmd.startsWith("1")) {
          if (isIntentAvailable(context, SHAC_OPEN)) {
-            if (!isNetworkConnected(context) && isIntentAvailable(context, BATTERYFU)) {
-               // enable data in case it's not. We'll do a sync, which will give us enough time
-               context.sendBroadcast(new Intent(Intent.ACTION_VIEW, Uri.parse(BATTERYFU)));
+            if (!isNetworkConnected(context)) {
+               try {
+                  // enable data in case it's not. We'll do a sync, which will give us enough time
+                  context.sendBroadcast(new Intent(Intent.ACTION_VIEW, Uri.parse(BATTERYFU)));
+               } catch (Exception e) {
+                  // ignore errors and hope for the best
+               }
                // we need to wait at least 10 seconds for data to connect
                new Thread() {
                   public void run() {
