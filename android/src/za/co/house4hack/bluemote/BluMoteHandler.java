@@ -12,6 +12,7 @@ import android.content.res.AssetFileDescriptor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
@@ -99,11 +100,6 @@ public class BluMoteHandler extends Handler {
    protected void processCommand(String cmd) {
       // for now we support 4 buttons
       if (cmd.startsWith("1")) {
-         /*
-          * Intent intent = new Intent(Intent.ACTION_CALL);
-          * intent.setData(Uri.parse("tel:10111"));
-          * startActivity(intent);
-          */
          if (isIntentAvailable(context, SHAC_OPEN)) {
             Intent intent = new Intent(SHAC_OPEN);
             intent.putExtra("access", "door");
@@ -116,7 +112,10 @@ public class BluMoteHandler extends Handler {
       } else if (cmd.startsWith("3")) {
          recordAudio(context);
       } else if (cmd.startsWith("4")) {
-
+         Intent intent = new Intent(Intent.ACTION_CALL);
+         intent.setData(Uri.parse("tel:100"));
+         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+         context.startActivity(intent);
       }
    }
 
