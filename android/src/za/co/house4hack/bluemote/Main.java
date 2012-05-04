@@ -98,6 +98,8 @@ public class Main extends Activity {
          finish();
          return;
       }
+      
+      if (mService == null) doBindService();
    }
 
    @Override
@@ -111,8 +113,6 @@ public class Main extends Activity {
          Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
          startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
          // Otherwise, setup the chat session
-      } else {
-         if (mService == null) doBindService();
       }
    }
 //

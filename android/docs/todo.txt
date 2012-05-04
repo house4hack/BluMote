@@ -1,0 +1,12 @@
+For the demo:
+=============
+- Full-screen blumote image
+- When button is pressed, pop up config dialog (mockup)
+  - button 1: emergency call: enter number
+  - button 2: voice record: enter how long
+  - button 3: siren : enter how long
+  - button 4: send location via sms: select group to send to
+
+Todo:
+=====
+- Can we get rid of service and use Broadcast Intents?
