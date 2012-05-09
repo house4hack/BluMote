@@ -99,7 +99,6 @@ public class BluMoteHandler extends Handler {
       }
    }
    
-
    protected void processCommand(String cmd) {
       // vibrate to let user know we received command
       Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
@@ -107,47 +106,55 @@ public class BluMoteHandler extends Handler {
       
       // for now we support 4 buttons
       if (cmd.startsWith("1")) {
-         if (isIntentAvailable(context, SHAC_OPEN)) {
-            if (!isNetworkConnected(context)) {
-               try {
-                  // enable data in case it's not. We'll do a sync, which will give us enough time
-                  context.sendBroadcast(new Intent(Intent.ACTION_VIEW, Uri.parse(BATTERYFU)));
-               } catch (Exception e) {
-                  // ignore errors and hope for the best
-               }
-               // we need to wait at least 10 seconds for data to connect
-               new Thread() {
-                  public void run() {
-                     try { sleep(10*1000); } catch (Exception e) {}
-                     post(new Runnable() {
-                        @Override
-                        public void run() {
-                           Intent intent = new Intent(SHAC_OPEN);
-                           intent.putExtra("access", "door");
-                           intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                           context.startActivity(intent);
-                        }
-                     });
-                  };
-               }.start();
-            } else {
-               Intent intent = new Intent(SHAC_OPEN);
-               intent.putExtra("access", "door");
-               intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-               context.startActivity(intent);
-            }
-         } else {
-            Toast.makeText(context, "SHAC is not installed", Toast.LENGTH_SHORT).show();
-         }
+         emergencyCall();
       } else if (cmd.startsWith("2")) {
          soundAlarm(context);
       } else if (cmd.startsWith("3")) {
          recordAudio(context);
       } else if (cmd.startsWith("4")) {
-         Intent intent = new Intent(Intent.ACTION_CALL);
-         intent.setData(Uri.parse("tel:100"));
-         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-         context.startActivity(intent);
+         shacOpenDoor();
+      }
+   }
+
+   private void emergencyCall() {
+      Intent intent = new Intent(Intent.ACTION_CALL);
+      intent.setData(Uri.parse("tel:100"));
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      context.startActivity(intent);
+   }
+
+   private void shacOpenDoor() {
+      if (isIntentAvailable(context, SHAC_OPEN)) {
+         if (!isNetworkConnected(context)) {
+            try {
+               // enable data in case it's not. We'll do a sync, which will give us enough time
+               context.sendBroadcast(new Intent(Intent.ACTION_VIEW, Uri.parse(BATTERYFU)));
+            } catch (Exception e) {
+               // ignore errors and hope for the best
+            }
+            // we need to wait at least 10 seconds for data to connect
+            new Thread() {
+               public void run() {
+                  try { sleep(10*1000); } catch (Exception e) {}
+                  post(new Runnable() {
+                     @Override
+                     public void run() {
+                        Intent intent = new Intent(SHAC_OPEN);
+                        intent.putExtra("access", "door");
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(intent);
+                     }
+                  });
+               };
+            }.start();
+         } else {
+            Intent intent = new Intent(SHAC_OPEN);
+            intent.putExtra("access", "door");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+         }
+      } else {
+         Toast.makeText(context, "SHAC is not installed", Toast.LENGTH_SHORT).show();
       }
    }
 

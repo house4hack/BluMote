@@ -7,6 +7,8 @@ For the demo:
   - button 3: siren : enter how long
   - button 4: send location via sms: select group to send to
 
+- pairing more timeout
+
 Todo:
 =====
 - Can we get rid of service and use Broadcast Intents?
